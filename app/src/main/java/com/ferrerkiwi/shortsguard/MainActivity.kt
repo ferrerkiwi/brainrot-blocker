@@ -10,7 +10,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +20,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.getValue
@@ -70,54 +70,59 @@ private fun ShortsGuardScreen(
     serviceEnabled: Boolean,
     openAccessibilitySettings: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
-        Text(
-            "!BrainRot",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Text(
-            if (serviceEnabled) "Protection is on" else "Protection is off",
-            style = MaterialTheme.typography.titleLarge,
-        )
-        Text(
-            "When YouTube opens a Shorts player, !BrainRot returns to the previous screen " +
-                "and briefly says \"Shorts blocked\".",
-        )
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Text(
+                "!BrainRot",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                if (serviceEnabled) "Protection is on" else "Protection is off",
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                "When YouTube opens a Shorts player, !BrainRot returns to the previous screen " +
+                    "and briefly says \"Shorts blocked\".",
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ),
             ) {
-                Text("Private by design", style = MaterialTheme.typography.titleMedium)
-                Text("• Watches only the official YouTube app")
-                Text("• No network access, account access, screenshots, or event history")
-                Text("• You can turn it off any time in Android Accessibility settings")
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Private by design", style = MaterialTheme.typography.titleMedium)
+                    Text("• Watches only the official YouTube app")
+                    Text("• No network access, account access, screenshots, or event history")
+                    Text("• You can turn it off any time in Android Accessibility settings")
+                }
             }
-        }
 
-        Button(
-            onClick = openAccessibilitySettings,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ),
-        ) {
-            Text(if (serviceEnabled) "Open Accessibility settings" else "Turn on !BrainRot")
+            Button(
+                onClick = openAccessibilitySettings,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            ) {
+                Text(if (serviceEnabled) "Open Accessibility settings" else "Turn on !BrainRot")
+            }
         }
     }
 }
