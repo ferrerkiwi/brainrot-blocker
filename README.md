@@ -1,6 +1,6 @@
-# Shorts Guard
+# !BrainRot
 
-Shorts Guard is a private, local-only Android accessibility helper. It observes only the
+!BrainRot is a private, local-only Android accessibility helper. It observes only the
 official YouTube app's visible accessibility UI and returns to the prior screen when a
 conservatively detected Shorts player opens.
 
@@ -20,7 +20,7 @@ conservatively detected Shorts player opens.
 2. Open this folder in Android Studio and allow Gradle sync to fetch the declared build tools.
 3. On the phone, enable Developer options and USB debugging, connect it by USB, then run the
    `app` debug configuration from Android Studio.
-4. Open Shorts Guard and use **Turn on Shorts Guard** to enable the service in Android Settings.
+4. Open !BrainRot and use **Turn on !BrainRot** to enable the service in Android Settings.
 
 The app uses Android's normal debug signing key when launched from Android Studio. It does not
 need ReVanced, GmsCore, a modified YouTube APK, or a Google sign-in.

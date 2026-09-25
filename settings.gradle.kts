@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ShortsGuard"
+rootProject.name = "BrainrotBlocker"
 include(":app")

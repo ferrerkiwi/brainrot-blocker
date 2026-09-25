@@ -58,13 +58,13 @@ private fun ShortsGuardScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Shorts Guard", style = MaterialTheme.typography.headlineMedium)
+        Text("!BrainRot", style = MaterialTheme.typography.headlineMedium)
         Text(
             if (serviceEnabled) "Protection is on" else "Protection is off",
             style = MaterialTheme.typography.titleLarge,
         )
         Text(
-            "When YouTube opens a Shorts player, Shorts Guard returns to the previous screen " +
+            "When YouTube opens a Shorts player, !BrainRot returns to the previous screen " +
                 "and briefly says \"Shorts blocked\".",
         )
 
@@ -81,7 +81,7 @@ private fun ShortsGuardScreen(
         }
 
         Button(onClick = openAccessibilitySettings) {
-            Text(if (serviceEnabled) "Open Accessibility settings" else "Turn on Shorts Guard")
+            Text(if (serviceEnabled) "Open Accessibility settings" else "Turn on !BrainRot")
         }
     }
 }
