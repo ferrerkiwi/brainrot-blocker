@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="launcher_icon_background">#000000</color>
     <string name="app_name">!BrainRot</string>
     <string name="accessibility_service_label">!BrainRot</string>
     <string name="accessibility_service_description">Blocks the YouTube Shorts player only. !BrainRot reads visible YouTube UI in memory to detect Shorts. It has no internet access, does not store screen content, and does not inspect other apps.</string>
