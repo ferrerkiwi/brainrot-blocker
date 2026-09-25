@@ -13,16 +13,33 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+
+private val BrainRotColors = darkColorScheme(
+    primary = Color(0xFFFF2727),
+    onPrimary = Color.Black,
+    primaryContainer = Color(0xFF8E0000),
+    onPrimaryContainer = Color.White,
+    background = Color.Black,
+    onBackground = Color.White,
+    surface = Color(0xFF151515),
+    onSurface = Color.White,
+    outline = Color(0xFF7A7A7A),
+)
 
 class MainActivity : ComponentActivity() {
     private var serviceEnabled by mutableStateOf(false)
@@ -30,7 +47,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            MaterialTheme(colorScheme = BrainRotColors) {
                 ShortsGuardScreen(
                     serviceEnabled = serviceEnabled,
                     openAccessibilitySettings = {
@@ -55,10 +72,15 @@ private fun ShortsGuardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .statusBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("!BrainRot", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            "!BrainRot",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
         Text(
             if (serviceEnabled) "Protection is on" else "Protection is off",
             style = MaterialTheme.typography.titleLarge,
@@ -68,7 +90,13 @@ private fun ShortsGuardScreen(
                 "and briefly says \"Shorts blocked\".",
         )
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ),
+        ) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -80,7 +108,13 @@ private fun ShortsGuardScreen(
             }
         }
 
-        Button(onClick = openAccessibilitySettings) {
+        Button(
+            onClick = openAccessibilitySettings,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ),
+        ) {
             Text(if (serviceEnabled) "Open Accessibility settings" else "Turn on !BrainRot")
         }
     }
