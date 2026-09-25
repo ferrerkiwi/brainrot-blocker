@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -36,7 +37,7 @@ private val BrainRotColors = darkColorScheme(
     onPrimaryContainer = Color.White,
     background = Color.Black,
     onBackground = Color.White,
-    surface = Color(0xFF151515),
+    surface = Color(0xFF303030),
     onSurface = Color.White,
     outline = Color(0xFF7A7A7A),
 )
@@ -72,6 +73,7 @@ private fun ShortsGuardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .padding(horizontal = 24.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
