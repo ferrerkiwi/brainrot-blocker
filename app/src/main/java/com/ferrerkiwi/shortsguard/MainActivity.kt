@@ -1,6 +1,7 @@
 package com.ferrerkiwi.shortsguard
 
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -8,53 +9,95 @@ import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.runtime.Composable
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 
-private val BrainRotColors = darkColorScheme(
-    primary = Color(0xFFFF2727),
+private val LightBrainRotColors = lightColorScheme(
+    primary = Color.Black,
+    onPrimary = Color.White,
+    background = Color.White,
+    onBackground = Color.Black,
+    surface = Color.White,
+    onSurface = Color.Black,
+    outline = Color.Black,
+)
+
+private val DarkBrainRotColors = darkColorScheme(
+    primary = Color.White,
     onPrimary = Color.Black,
-    primaryContainer = Color(0xFF8E0000),
-    onPrimaryContainer = Color.White,
     background = Color.Black,
     onBackground = Color.White,
-    surface = Color(0xFF303030),
+    surface = Color.Black,
     onSurface = Color.White,
-    outline = Color(0xFF7A7A7A),
+    outline = Color.White,
 )
+
+private enum class ThemeMode {
+    LIGHT,
+    DARK,
+}
 
 class MainActivity : ComponentActivity() {
     private var serviceEnabled by mutableStateOf(false)
+    private var themeMode by mutableStateOf(ThemeMode.DARK)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        themeMode = loadThemeMode()
         setContent {
-            MaterialTheme(colorScheme = BrainRotColors) {
-                ShortsGuardScreen(
-                    serviceEnabled = serviceEnabled,
-                    openAccessibilitySettings = {
-                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    },
-                )
+            var showSettings by rememberSaveable { mutableStateOf(false) }
+            val colors = if (themeMode == ThemeMode.LIGHT) {
+                LightBrainRotColors
+            } else {
+                DarkBrainRotColors
+            }
+
+            MaterialTheme(colorScheme = colors) {
+                ConfigureSystemBars(isLight = themeMode == ThemeMode.LIGHT)
+                if (showSettings) {
+                    SettingsScreen(
+                        themeMode = themeMode,
+                        onThemeSelected = ::saveThemeMode,
+                        onBack = { showSettings = false },
+                    )
+                } else {
+                    ShortsGuardScreen(
+                        serviceEnabled = serviceEnabled,
+                        openAccessibilitySettings = {
+                            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        },
+                        openSettings = { showSettings = true },
+                    )
+                }
             }
         }
     }
@@ -63,18 +106,49 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         serviceEnabled = isAccessibilityServiceEnabled(this)
     }
+
+    private fun loadThemeMode(): ThemeMode {
+        val storedValue = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+            .getString(THEME_MODE_KEY, ThemeMode.DARK.name)
+        return ThemeMode.entries.firstOrNull { it.name == storedValue } ?: ThemeMode.DARK
+    }
+
+    private fun saveThemeMode(themeMode: ThemeMode) {
+        this.themeMode = themeMode
+        getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+            .edit()
+            .putString(THEME_MODE_KEY, themeMode.name)
+            .apply()
+    }
+
+    private companion object {
+        const val PREFERENCES_NAME = "brainrot_preferences"
+        const val THEME_MODE_KEY = "theme_mode"
+    }
+}
+
+@Composable
+private fun ConfigureSystemBars(isLight: Boolean) {
+    val view = LocalView.current
+    SideEffect {
+        val window = (view.context as Activity).window
+        val barColor = if (isLight) Color.White else Color.Black
+        window.statusBarColor = barColor.toArgb()
+        window.navigationBarColor = barColor.toArgb()
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = isLight
+            isAppearanceLightNavigationBars = isLight
+        }
+    }
 }
 
 @Composable
 private fun ShortsGuardScreen(
     serviceEnabled: Boolean,
     openAccessibilitySettings: () -> Unit,
+    openSettings: () -> Unit,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onBackground,
-    ) {
+    AppSurface {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -82,11 +156,15 @@ private fun ShortsGuardScreen(
                 .padding(horizontal = 24.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                "!BrainRot",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("!BrainRot", style = MaterialTheme.typography.headlineMedium)
+                OutlinedButton(onClick = openSettings) {
+                    Text("Settings")
+                }
+            }
             Text(
                 if (serviceEnabled) "Protection is on" else "Protection is off",
                 style = MaterialTheme.typography.titleLarge,
@@ -96,33 +174,121 @@ private fun ShortsGuardScreen(
                     "and briefly says \"Shorts blocked\".",
             )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+            InfoCard {
+                Text("Private by design", style = MaterialTheme.typography.titleMedium)
+                Text("• Watches only the official YouTube app")
+                Text("• No network access, account access, screenshots, or event history")
+                Text("• You can turn it off any time in Android Accessibility settings")
+            }
+
+            PrimaryButton(
+                onClick = openAccessibilitySettings,
+                text = if (serviceEnabled) "Open Accessibility settings" else "Turn on !BrainRot",
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsScreen(
+    themeMode: ThemeMode,
+    onThemeSelected: (ThemeMode) -> Unit,
+    onBack: () -> Unit,
+) {
+    AppSurface {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 24.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("Settings", style = MaterialTheme.typography.headlineMedium)
+            Text("Appearance", style = MaterialTheme.typography.titleLarge)
+            Text("Choose how !BrainRot looks on your phone.")
+
+            InfoCard {
+                Text("Theme", style = MaterialTheme.typography.titleMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text("Private by design", style = MaterialTheme.typography.titleMedium)
-                    Text("• Watches only the official YouTube app")
-                    Text("• No network access, account access, screenshots, or event history")
-                    Text("• You can turn it off any time in Android Accessibility settings")
+                    ThemeOption(
+                        label = "Light",
+                        selected = themeMode == ThemeMode.LIGHT,
+                        onClick = { onThemeSelected(ThemeMode.LIGHT) },
+                        modifier = Modifier,
+                    )
+                    ThemeOption(
+                        label = "Dark",
+                        selected = themeMode == ThemeMode.DARK,
+                        onClick = { onThemeSelected(ThemeMode.DARK) },
+                        modifier = Modifier,
+                    )
                 }
             }
 
-            Button(
-                onClick = openAccessibilitySettings,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            ) {
-                Text(if (serviceEnabled) "Open Accessibility settings" else "Turn on !BrainRot")
+            OutlinedButton(onClick = onBack) {
+                Text("Done")
             }
+        }
+    }
+}
+
+@Composable
+private fun AppSurface(content: @Composable () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+        content = content,
+    )
+}
+
+@Composable
+private fun InfoCard(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = content,
+        )
+    }
+}
+
+@Composable
+private fun PrimaryButton(onClick: () -> Unit, text: String, modifier: Modifier = Modifier) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+    ) {
+        Text(text)
+    }
+}
+
+@Composable
+private fun ThemeOption(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    if (selected) {
+        PrimaryButton(onClick = onClick, text = label, modifier = modifier)
+    } else {
+        OutlinedButton(onClick = onClick, modifier = modifier) {
+            Text(label)
         }
     }
 }
