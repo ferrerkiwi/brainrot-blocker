@@ -188,8 +188,8 @@ private fun ShortsGuardScreen(
             )
             Text(
                 if (protectionEnabled) {
-                    "When YouTube opens a Shorts player, !BrainRot returns to the previous " +
-                        "screen and briefly says \"Shorts blocked\"."
+                    "When YouTube opens a Shorts player or Instagram opens a Reel, !BrainRot " +
+                        "returns to the previous screen."
                 } else {
                     "!BrainRot is paused. YouTube Shorts will open normally until you turn " +
                         "protection back on."
@@ -214,7 +214,7 @@ private fun ShortsGuardScreen(
 
             InfoCard {
                 Text("Private by design", style = MaterialTheme.typography.titleMedium)
-                Text("• Watches only the official YouTube app")
+                Text("• Watches only the official YouTube and Instagram apps")
                 Text("• No network access, account access, screenshots, or event history")
                 Text("• You can pause it here or turn it off in Android Accessibility settings")
             }
