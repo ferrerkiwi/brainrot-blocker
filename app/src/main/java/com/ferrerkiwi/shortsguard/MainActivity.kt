@@ -25,6 +25,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -35,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
@@ -68,11 +70,13 @@ private enum class ThemeMode {
 
 class MainActivity : ComponentActivity() {
     private var serviceEnabled by mutableStateOf(false)
+    private var protectionEnabled by mutableStateOf(true)
     private var themeMode by mutableStateOf(ThemeMode.DARK)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         themeMode = loadThemeMode()
+        protectionEnabled = ProtectionPreferences.isEnabled(this)
         setContent {
             var showSettings by rememberSaveable { mutableStateOf(false) }
             val colors = if (themeMode == ThemeMode.LIGHT) {
@@ -92,9 +96,11 @@ class MainActivity : ComponentActivity() {
                 } else {
                     ShortsGuardScreen(
                         serviceEnabled = serviceEnabled,
+                        protectionEnabled = protectionEnabled,
                         openAccessibilitySettings = {
                             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                         },
+                        onProtectionChanged = ::saveProtectionEnabled,
                         openSettings = { showSettings = true },
                     )
                 }
@@ -121,6 +127,11 @@ class MainActivity : ComponentActivity() {
             .apply()
     }
 
+    private fun saveProtectionEnabled(enabled: Boolean) {
+        protectionEnabled = enabled
+        ProtectionPreferences.setEnabled(this, enabled)
+    }
+
     private companion object {
         const val PREFERENCES_NAME = "brainrot_preferences"
         const val THEME_MODE_KEY = "theme_mode"
@@ -145,7 +156,9 @@ private fun ConfigureSystemBars(isLight: Boolean) {
 @Composable
 private fun ShortsGuardScreen(
     serviceEnabled: Boolean,
+    protectionEnabled: Boolean,
     openAccessibilitySettings: () -> Unit,
+    onProtectionChanged: (Boolean) -> Unit,
     openSettings: () -> Unit,
 ) {
     AppSurface {
@@ -166,19 +179,44 @@ private fun ShortsGuardScreen(
                 }
             }
             Text(
-                if (serviceEnabled) "Protection is on" else "Protection is off",
+                when {
+                    !protectionEnabled -> "Protection is paused"
+                    serviceEnabled -> "Protection is on"
+                    else -> "Protection needs permission"
+                },
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                "When YouTube opens a Shorts player, !BrainRot returns to the previous screen " +
-                    "and briefly says \"Shorts blocked\".",
+                if (protectionEnabled) {
+                    "When YouTube opens a Shorts player, !BrainRot returns to the previous " +
+                        "screen and briefly says \"Shorts blocked\"."
+                } else {
+                    "!BrainRot is paused. YouTube Shorts will open normally until you turn " +
+                        "protection back on."
+                },
             )
+
+            InfoCard {
+                Text("Protection", style = MaterialTheme.typography.titleMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(if (protectionEnabled) "On" else "Off")
+                    Switch(
+                        checked = protectionEnabled,
+                        onCheckedChange = onProtectionChanged,
+                    )
+                }
+                Text("Pause blocking without changing Android Accessibility settings.")
+            }
 
             InfoCard {
                 Text("Private by design", style = MaterialTheme.typography.titleMedium)
                 Text("• Watches only the official YouTube app")
                 Text("• No network access, account access, screenshots, or event history")
-                Text("• You can turn it off any time in Android Accessibility settings")
+                Text("• You can pause it here or turn it off in Android Accessibility settings")
             }
 
             PrimaryButton(

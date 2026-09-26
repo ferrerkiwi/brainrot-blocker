@@ -19,6 +19,7 @@ class ShortsGuardAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         if (event.packageName?.toString() != YOUTUBE_PACKAGE) return
+        if (!ProtectionPreferences.isEnabled(this)) return
 
         val now = System.currentTimeMillis()
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
