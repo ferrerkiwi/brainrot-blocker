@@ -5,6 +5,7 @@ import android.accessibilityservice.GestureDescription
 import android.graphics.Color
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -160,20 +161,20 @@ class ShortsGuardAccessibilityService : AccessibilityService() {
     }
 
     private fun scrollInstagramFeedBackward(feed: AccessibilityNodeInfo): Boolean {
-        if (feed.actionList.any {
-                it.id == AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD.id
-            } && feed.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD)
-        ) return true
+        val bounds = Rect()
+        feed.getBoundsInScreen(bounds)
+        if (bounds.height() < 200 || bounds.width() < 100) return false
 
-        // Some Instagram versions omit the feed's scroll action from Accessibility.
-        val width = resources.displayMetrics.widthPixels.toFloat()
-        val height = resources.displayMetrics.heightPixels.toFloat()
+        // A fast drag lets Instagram coast back through posts in one continuous fling.
+        val x = bounds.exactCenterX()
+        val startY = bounds.top + bounds.height() * 0.2f
+        val endY = bounds.top + bounds.height() * 0.8f
         val path = Path().apply {
-            moveTo(width * 0.5f, height * 0.35f)
-            lineTo(width * 0.5f, height * 0.75f)
+            moveTo(x, startY)
+            lineTo(x, endY)
         }
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0L, 350L))
+            .addStroke(GestureDescription.StrokeDescription(path, 0L, 180L))
             .build()
         return dispatchGesture(gesture, null, null)
     }
