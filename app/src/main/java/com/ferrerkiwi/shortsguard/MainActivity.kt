@@ -189,7 +189,8 @@ private fun ShortsGuardScreen(
             Text(
                 if (protectionEnabled) {
                     "When YouTube opens a Shorts player or Instagram opens a Reel, !BrainRot " +
-                        "returns to the previous screen."
+                        "returns to the previous screen. On Instagram Home, it scrolls back " +
+                        "when suggested posts begin."
                 } else {
                     "!BrainRot is paused. YouTube Shorts will open normally until you turn " +
                         "protection back on."

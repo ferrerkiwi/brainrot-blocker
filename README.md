@@ -1,16 +1,17 @@
 # !BrainRot
 
 !BrainRot is a private, local-only Android accessibility helper. It observes only the
-official YouTube app's visible accessibility UI and returns to the prior screen when a
-conservatively detected Shorts player opens.
+official YouTube and Instagram apps. It returns to the prior screen when a Shorts or
+Reels player opens. When Instagram's Home feed reaches "You're all caught up" or
+suggested posts, it scrolls back toward followed posts.
 
 ## Privacy boundary
 
 - No `INTERNET`, account, storage, notification, VPN, root, screenshot, or installer permission.
-- The accessibility service is package-filtered to `com.google.android.youtube` and checks that
-  package again at runtime.
+- The accessibility service is package-filtered to the official YouTube and Instagram packages
+  and checks the event's package again at runtime.
 - UI text and identifiers are held only in memory during a single callback. The app has no logs,
-  analytics, database, or preferences.
+  analytics, or database. Protection and theme choices are stored locally.
 
 ## Build locally
 
@@ -21,6 +22,12 @@ conservatively detected Shorts player opens.
 3. On the phone, enable Developer options and USB debugging, connect it by USB, then run the
    `app` debug configuration from Android Studio.
 4. Open !BrainRot and use **Turn on !BrainRot** to enable the service in Android Settings.
+
+For a command-line build on this Mac, use:
+
+```sh
+JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew testDebugUnitTest assembleDebug
+```
 
 The app uses Android's normal debug signing key when launched from Android Studio. It does not
 need ReVanced, GmsCore, a modified YouTube APK, or a Google sign-in.
@@ -34,3 +41,6 @@ markers in `ShortsDetector` if YouTube exposes different identifiers.
 
 Verify that Shorts entered from Home, search, subscriptions, and a deep link return immediately;
 normal videos and a Home Shorts shelf must not trigger the guard.
+
+In Instagram, scroll until the visible "You're all caught up" message appears. The feed should
+move back to an earlier followed post. Check that ordinary feed posts still scroll normally.

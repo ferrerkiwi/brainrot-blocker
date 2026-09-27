@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  This service receives events only from the official YouTube and Instagram packages. It does
-  not request gesture control, screenshots, key-event filtering, or access to other apps.
+  This service receives events only from the official YouTube and Instagram packages. It
+  uses gestures only to return to earlier Instagram posts when the feed has no scroll action.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewClicked"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewClicked|typeViewScrolled"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagReportViewIds"
     android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true"
     android:description="@string/accessibility_service_description"
     android:notificationTimeout="150"
     android:packageNames="com.google.android.youtube,com.instagram.android"
