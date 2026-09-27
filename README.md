@@ -3,7 +3,7 @@
 !BrainRot is a private, local-only Android accessibility helper. It observes only the
 official YouTube and Instagram apps. It returns to the prior screen when a Shorts or
 Reels player opens. When Instagram's Home feed reaches "You're all caught up" or
-suggested posts, it flings back toward followed posts in one smooth motion.
+suggested posts, it moves back to the last followed post in one smooth motion.
 
 ## Privacy boundary
 
@@ -43,5 +43,5 @@ Verify that Shorts entered from Home, search, subscriptions, and a deep link ret
 normal videos and a Home Shorts shelf must not trigger the guard.
 
 In Instagram, scroll until the visible "You're all caught up" message appears, including with a
-fast swipe past it. The feed should fling back smoothly to an earlier followed post. Check that
-ordinary feed posts still scroll normally.
+fast swipe past it. The feed should move back smoothly to the post just before the message,
+without returning to Stories. Check that ordinary feed posts still scroll normally.

@@ -22,4 +22,18 @@ class InstagramCaughtUpDetectorTest {
         assertFalse(InstagramCaughtUpDetector.isBoundary(null, "Someone said you're all caught up", null))
         assertFalse(InstagramCaughtUpDetector.isBoundary(null, null, null))
     }
+
+    @Test
+    fun `prefers the caught up marker over suggested post labels`() {
+        val marker = InstagramCaughtUpDetector.priority(
+            "com.instagram.android:id/end_of_feed_demarcator_container", null, null,
+        )
+        val caughtUpTitle = InstagramCaughtUpDetector.priority(null, "You're all caught up", null)
+        val suggestedTitle = InstagramCaughtUpDetector.priority(null, "Suggested Posts", null)
+        val suggestion = InstagramCaughtUpDetector.priority(null, "Suggested for you", null)
+
+        assertTrue(marker > caughtUpTitle)
+        assertTrue(caughtUpTitle > suggestedTitle)
+        assertTrue(suggestedTitle > suggestion)
+    }
 }

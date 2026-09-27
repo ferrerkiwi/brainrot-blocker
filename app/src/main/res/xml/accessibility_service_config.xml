@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   This service receives events only from the official YouTube and Instagram packages. It
-  uses a feed gesture to fling back toward earlier Instagram posts at the caught-up boundary.
+  uses a measured feed scroll action, with a gesture fallback, to return to the last followed post.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeViewClicked|typeViewScrolled"

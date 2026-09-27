@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
@@ -13,24 +14,22 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.TextView
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 
 class ShortsGuardAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private val boundaryHandler = Handler(Looper.getMainLooper())
-    private val boundaryCheck = Runnable {
-        if (ProtectionPreferences.isEnabled(this)) {
-            val root = rootInActiveWindow
-            if (root?.packageName?.toString() == INSTAGRAM_PACKAGE) {
-                handleInstagramFeedBoundary(root, System.currentTimeMillis())
-            }
-        }
-    }
+    private val boundaryCheck = Runnable { returnToInstagramBoundary() }
     private val shortsBlockPolicy = ShortsBlockPolicy(BLOCK_COOLDOWN_MS)
     private val reelsBlockPolicy = ShortsBlockPolicy(BLOCK_COOLDOWN_MS)
     private var lastYouTubeInspectionAt = 0L
     private var lastInstagramInspectionAt = 0L
     private var shortsIntentExpiresAt = 0L
-    private var lastCaughtUpActionAt = 0L
+    private var boundaryReturnPending = false
+    private var boundaryReturnAttempts = 0
+    private var boundaryReturnInProgress = false
+    private var boundarySamplePriority = 0
+    private var boundarySampleTop: Int? = null
     private var notice: TextView? = null
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -93,7 +92,7 @@ class ShortsGuardAccessibilityService : AccessibilityService() {
         val root = rootInActiveWindow ?: return
         val snapshot = ShortsDetector.run { root.toUiSnapshot() }
         if (InstagramReelsDetector.isReelsPlayer(snapshot)) {
-            boundaryHandler.removeCallbacks(boundaryCheck)
+            stopBoundaryReturn()
             if (!reelsBlockPolicy.shouldBlock(now)) return
             reelsBlockPolicy.recordBlock(now)
             performGlobalAction(GLOBAL_ACTION_BACK)
@@ -103,32 +102,79 @@ class ShortsGuardAccessibilityService : AccessibilityService() {
             reelsBlockPolicy.recordNonShortsSurface()
         }
 
-        handleInstagramFeedBoundary(root, now)
+        handleInstagramFeedBoundary(root)
     }
 
-    private fun handleInstagramFeedBoundary(root: AccessibilityNodeInfo, now: Long) {
+    private fun handleInstagramFeedBoundary(root: AccessibilityNodeInfo) {
         val feed = findInstagramFeed(root)
-        if (feed == null || !hasVisibleBoundary(feed)) {
-            boundaryHandler.removeCallbacks(boundaryCheck)
+        if (feed == null) {
+            stopBoundaryReturn()
+            return
+        }
+        val boundary = findVisibleBoundary(feed)
+        if (boundary != null && !boundaryReturnPending) {
+            boundaryReturnPending = true
+            scheduleBoundaryCheck(BOUNDARY_SETTLE_MS)
+        }
+    }
+
+    private fun returnToInstagramBoundary() {
+        if (!boundaryReturnPending || boundaryReturnInProgress ||
+            !ProtectionPreferences.isEnabled(this)
+        ) return
+        val root = rootInActiveWindow
+        if (root?.packageName?.toString() != INSTAGRAM_PACKAGE) {
+            stopBoundaryReturn()
+            return
+        }
+        val feed = findInstagramFeed(root)
+        val boundary = feed?.let(::findVisibleBoundary)
+        if (feed == null || boundary == null || boundaryReturnAttempts >= MAX_BOUNDARY_RETURN_ATTEMPTS) {
+            stopBoundaryReturn()
             return
         }
 
-        val remainingCooldown = CAUGHT_UP_ACTION_COOLDOWN_MS - (now - lastCaughtUpActionAt)
-        if (remainingCooldown > 0) {
-            scheduleBoundaryCheck(remainingCooldown)
+        val feedBounds = Rect()
+        val boundaryBounds = Rect()
+        feed.getBoundsInScreen(feedBounds)
+        boundary.getBoundsInScreen(boundaryBounds)
+        val priority = InstagramCaughtUpDetector.priority(
+            boundary.viewIdResourceName, boundary.text, boundary.contentDescription,
+        )
+        val previousTop = boundarySampleTop
+        if (priority != boundarySamplePriority || previousTop == null ||
+            kotlin.math.abs(boundaryBounds.top - previousTop) > BOUNDARY_STABLE_TOLERANCE_PX
+        ) {
+            boundarySamplePriority = priority
+            boundarySampleTop = boundaryBounds.top
+            scheduleBoundaryCheck(BOUNDARY_STABILITY_MS)
+            return
+        }
+        val targetY = feedBounds.top + feedBounds.height() * 0.88f
+        if (priority >= 3 && boundaryBounds.top >= targetY - BOUNDARY_TARGET_TOLERANCE_PX) {
+            stopBoundaryReturn()
             return
         }
 
-        if (scrollInstagramFeedBackward(feed)) {
-            lastCaughtUpActionAt = now
-            showBlockedNotice("End of followed posts")
-            scheduleBoundaryCheck(CAUGHT_UP_ACTION_COOLDOWN_MS)
+        if (scrollInstagramFeedBackward(feed, boundary, priority)) {
+            boundaryReturnAttempts++
+            if (boundaryReturnAttempts == 1) showBlockedNotice("End of followed posts")
+        } else {
+            stopBoundaryReturn()
         }
     }
 
     private fun scheduleBoundaryCheck(delayMs: Long) {
         boundaryHandler.removeCallbacks(boundaryCheck)
         boundaryHandler.postDelayed(boundaryCheck, delayMs)
+    }
+
+    private fun stopBoundaryReturn() {
+        boundaryHandler.removeCallbacks(boundaryCheck)
+        boundaryReturnPending = false
+        boundaryReturnAttempts = 0
+        boundarySamplePriority = 0
+        boundarySampleTop = null
     }
 
     private fun findInstagramFeed(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
@@ -144,39 +190,112 @@ class ShortsGuardAccessibilityService : AccessibilityService() {
         return null
     }
 
-    private fun hasVisibleBoundary(feed: AccessibilityNodeInfo): Boolean {
+    private fun findVisibleBoundary(feed: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         val stack = ArrayDeque<AccessibilityNodeInfo>()
         stack.add(feed)
+        var best: AccessibilityNodeInfo? = null
+        var bestPriority = 0
         while (stack.isNotEmpty()) {
             val node = stack.removeLast()
-            if (node.isVisibleToUser && InstagramCaughtUpDetector.isBoundary(
+            val priority = if (node.isVisibleToUser) InstagramCaughtUpDetector.priority(
                     node.viewIdResourceName, node.text, node.contentDescription,
-                )
-            ) return true
+                ) else 0
+            if (priority > bestPriority) {
+                best = node
+                bestPriority = priority
+                if (priority == 4) return node
+            }
             for (index in 0 until node.childCount) {
                 node.getChild(index)?.let(stack::add)
             }
         }
-        return false
+        return best
     }
 
-    private fun scrollInstagramFeedBackward(feed: AccessibilityNodeInfo): Boolean {
-        val bounds = Rect()
-        feed.getBoundsInScreen(bounds)
-        if (bounds.height() < 200 || bounds.width() < 100) return false
+    private fun scrollInstagramFeedBackward(
+        feed: AccessibilityNodeInfo,
+        boundary: AccessibilityNodeInfo,
+        priority: Int,
+    ): Boolean {
+        val feedBounds = Rect()
+        val boundaryBounds = Rect()
+        feed.getBoundsInScreen(feedBounds)
+        boundary.getBoundsInScreen(boundaryBounds)
+        if (feedBounds.height() < 200 || feedBounds.width() < 100 || boundaryBounds.isEmpty) return false
 
-        // A fast drag lets Instagram coast back through posts in one continuous fling.
-        val x = bounds.exactCenterX()
-        val startY = bounds.top + bounds.height() * 0.2f
-        val endY = bounds.top + bounds.height() * 0.8f
+        val x = feedBounds.exactCenterX()
+        val startY = feedBounds.top + feedBounds.height() * 0.08f
+        // Place the caught-up marker near the bottom, leaving the preceding post in view.
+        val targetBoundaryY = feedBounds.top + feedBounds.height() * 0.88f
+        val estimatedCaughtUpTop = when (priority) {
+            2 -> boundaryBounds.top - feedBounds.height() * 0.28f
+            1 -> boundaryBounds.top - feedBounds.height() * 0.8f
+            else -> boundaryBounds.top.toFloat()
+        }
+        val desiredDistance = (targetBoundaryY - estimatedCaughtUpTop).coerceAtLeast(0f)
+        if (desiredDistance < 40f) return false
+
+        val canScrollBackward = feed.actionList.any {
+            it.id == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+        }
+        if (canScrollBackward) {
+            val amount = (desiredDistance / feedBounds.height()).coerceAtMost(3f)
+            val args = Bundle().apply {
+                putFloat(AccessibilityNodeInfoCompat.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT, amount)
+                putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_SCROLL_AMOUNT_FLOAT, amount)
+            }
+            if (feed.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD, args)) {
+                boundarySampleTop = null
+                scheduleBoundaryCheck(BOUNDARY_SCROLL_FOLLOW_UP_MS)
+                return true
+            }
+        }
+
+        // Fall back to a held touch gesture if this Instagram feed omits its scroll action.
+        val distance = desiredDistance.coerceAtMost(feedBounds.height() * 0.82f)
+        val endY = startY + distance
         val path = Path().apply {
             moveTo(x, startY)
             lineTo(x, endY)
         }
+        // Keep the finger down briefly at the end so the drag stops without fling momentum.
+        val drag = GestureDescription.StrokeDescription(path, 0L, BOUNDARY_DRAG_DURATION_MS, true)
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0L, 180L))
+            .addStroke(drag)
             .build()
-        return dispatchGesture(gesture, null, null)
+        boundaryReturnInProgress = true
+        val started = dispatchGesture(gesture, object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription) {
+                val holdPath = Path().apply { moveTo(x, endY) }
+                val hold = drag.continueStroke(holdPath, 0L, BOUNDARY_HOLD_DURATION_MS, false)
+                val holdGesture = GestureDescription.Builder().addStroke(hold).build()
+                val holding = dispatchGesture(holdGesture, object : GestureResultCallback() {
+                    override fun onCompleted(gestureDescription: GestureDescription) {
+                        boundaryReturnInProgress = false
+                        if (boundaryReturnPending) {
+                            boundarySampleTop = null
+                            scheduleBoundaryCheck(BOUNDARY_FOLLOW_UP_MS)
+                        }
+                    }
+
+                    override fun onCancelled(gestureDescription: GestureDescription) {
+                        boundaryReturnInProgress = false
+                        stopBoundaryReturn()
+                    }
+                }, handler)
+                if (!holding) {
+                    boundaryReturnInProgress = false
+                    stopBoundaryReturn()
+                }
+            }
+
+            override fun onCancelled(gestureDescription: GestureDescription) {
+                boundaryReturnInProgress = false
+                stopBoundaryReturn()
+            }
+        }, handler)
+        if (!started) boundaryReturnInProgress = false
+        return started
     }
 
     private fun showBlockedNotice(message: String) {
@@ -222,6 +341,14 @@ class ShortsGuardAccessibilityService : AccessibilityService() {
         const val SHORTS_INTENT_WINDOW_MS = 3_000L
         const val BLOCK_COOLDOWN_MS = 1_750L
         const val NOTICE_DURATION_MS = 1_000L
-        const val CAUGHT_UP_ACTION_COOLDOWN_MS = 600L
+        const val BOUNDARY_SETTLE_MS = 300L
+        const val BOUNDARY_STABILITY_MS = 150L
+        const val BOUNDARY_STABLE_TOLERANCE_PX = 20
+        const val BOUNDARY_FOLLOW_UP_MS = 100L
+        const val BOUNDARY_SCROLL_FOLLOW_UP_MS = 450L
+        const val BOUNDARY_TARGET_TOLERANCE_PX = 100f
+        const val MAX_BOUNDARY_RETURN_ATTEMPTS = 3
+        const val BOUNDARY_DRAG_DURATION_MS = 450L
+        const val BOUNDARY_HOLD_DURATION_MS = 200L
     }
 }
